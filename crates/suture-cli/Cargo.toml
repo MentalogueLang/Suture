@@ -1,0 +1,11 @@
+[package]
+name = "suture-cli"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+suture-fetch = { path = "../suture-fetch" }
+suture-index = { path = "../suture-index" }
+suture-manifest = { path = "../suture-manifest" }
+suture-resolver = { path = "../suture-resolver" }
+suture-verify = { path = "../suture-verify" }

@@ -1,0 +1,11 @@
+[workspace]
+members = [
+    "crates/suture-cli",
+    "crates/suture-manifest",
+    "crates/suture-index",
+    "crates/suture-resolver",
+    "crates/suture-fetch",
+    "crates/suture-verify",
+    "crates/suture-sandbox",
+]
+resolver = "2"
