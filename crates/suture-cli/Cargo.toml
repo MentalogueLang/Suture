@@ -9,3 +9,4 @@ suture-index = { path = "../suture-index" }
 suture-manifest = { path = "../suture-manifest" }
 suture-resolver = { path = "../suture-resolver" }
 suture-verify = { path = "../suture-verify" }
+ureq = "2.9"

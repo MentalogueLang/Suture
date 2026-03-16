@@ -28,7 +28,7 @@ pub fn usage() -> String {
         "  suture add <thread> <version>",
         "  suture remove <thread>",
         "  suture pull",
-        "  suture publish",
+        "  suture publish <name> <version> <git-url> [--tag <tag>] [--summary <text>] [--rate <minutes>]",
         "  suture spool add <name> <version> <git-url> [--tag <tag>]",
         "  suture spool list",
         "  suture audit",
