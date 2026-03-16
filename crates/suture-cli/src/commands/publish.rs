@@ -112,7 +112,10 @@ fn post_comment(repo: &str, issue: &str, body: &str, token: &str) -> Result<(), 
             Ok(())
         }
         Err(error) => {
-            let status = error.status().unwrap_or(500);
+            let status = match error {
+                ureq::Error::Status(code, _) => code,
+                ureq::Error::Transport(_) => 500,
+            };
             Err(format!("github api error (status {status})"))
         }
     }
