@@ -1,6 +1,4 @@
 use std::fs;
-use std::path::PathBuf;
-
 use suture_index::{list_spools, spools_root, SpoolEntry};
 
 pub fn run(args: &[String]) -> Result<(), String> {
