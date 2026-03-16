@@ -1,4 +1,3 @@
-// TODO: Implement the publish module for suture-cli.
-
-#[derive(Debug, Default)]
-pub struct PublishStub;
+pub fn run(_args: &[String]) -> Result<(), String> {
+    Err("suture publish is not implemented yet".to_string())
+}

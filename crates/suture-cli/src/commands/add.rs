@@ -1,4 +1,3 @@
-// TODO: Implement the add module for suture-cli.
-
-#[derive(Debug, Default)]
-pub struct AddStub;
+pub fn run(_args: &[String]) -> Result<(), String> {
+    Err("suture add is not implemented yet".to_string())
+}

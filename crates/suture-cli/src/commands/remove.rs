@@ -1,4 +1,3 @@
-// TODO: Implement the remove module for suture-cli.
-
-#[derive(Debug, Default)]
-pub struct RemoveStub;
+pub fn run(_args: &[String]) -> Result<(), String> {
+    Err("suture remove is not implemented yet".to_string())
+}
