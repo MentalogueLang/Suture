@@ -8,7 +8,8 @@ pub fn spools_root() -> io::Result<PathBuf> {
         }
     }
 
-    let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let repo_root = manifest_dir
         .parent()
         .and_then(|path| path.parent())
         .and_then(|path| path.parent())
