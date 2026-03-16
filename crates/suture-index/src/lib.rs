@@ -3,4 +3,7 @@ pub mod cache;
 pub mod search;
 pub mod spool_entry;
 
-// TODO: Implement the library root module for suture-index.
+pub use cache::spools_root;
+pub use fetch::fetch_registry;
+pub use search::{list_spools, search_by_name};
+pub use spool_entry::SpoolEntry;
