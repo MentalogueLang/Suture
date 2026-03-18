@@ -5,5 +5,5 @@ pub mod spool_entry;
 
 pub use cache::spools_root;
 pub use fetch::fetch_registry;
-pub use search::{list_spools, search_by_name};
+pub use search::{bucket_for_name, find_spool, list_spools, search_by_name, spool_path};
 pub use spool_entry::SpoolEntry;

@@ -25,11 +25,12 @@ pub fn dispatch(args: &[String]) -> Result<(), String> {
 pub fn usage() -> String {
     [
         "usage:",
-        "  suture add <thread> <version>",
-        "  suture remove <thread>",
+        "  suture add <spool> <version>",
+        "  suture remove <spool>",
         "  suture pull",
-        "  suture publish <name> <version> <git-url> [--tag <tag>] [--summary <text>] [--rate <minutes>]",
-        "  suture spool add <name> <version> <git-url> [--tag <tag>]",
+        "  suture publish <spool.toml> [--rate <minutes>]",
+        "  suture publish <name> <version> <git-url> [--tag <tag>] [--summary <text>] [--entry <path>] [--rate <minutes>]",
+        "  suture spool add <name> <version> <git-url> [--tag <tag>] [--summary <text>] [--entry <path>]",
         "  suture spool list",
         "  suture audit",
     ]

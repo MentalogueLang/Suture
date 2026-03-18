@@ -5,6 +5,7 @@ use suture_resolver as _;
 use suture_verify as _;
 
 pub mod commands;
+pub mod support;
 
 fn main() {
     let args = std::env::args().skip(1).collect::<Vec<_>>();

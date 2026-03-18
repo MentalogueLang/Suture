@@ -17,6 +17,15 @@ pub fn list_spools() -> io::Result<Vec<SpoolEntry>> {
     Ok(entries)
 }
 
+pub fn find_spool(name: &str, version: &str) -> io::Result<Option<SpoolEntry>> {
+    let root = fetch_registry()?;
+    let path = spool_path(&root, name, version);
+    if !path.exists() {
+        return Ok(None);
+    }
+    SpoolEntry::read(&path).map(Some)
+}
+
 pub fn search_by_name(name: &str) -> io::Result<Vec<SpoolEntry>> {
     let entries = list_spools()?;
     let needle = name.to_lowercase();
@@ -24,6 +33,54 @@ pub fn search_by_name(name: &str) -> io::Result<Vec<SpoolEntry>> {
         .into_iter()
         .filter(|entry| entry.name.to_lowercase().contains(&needle))
         .collect())
+}
+
+pub fn spool_path(root: &Path, name: &str, version: &str) -> PathBuf {
+    root.join("entries")
+        .join(bucket_for_name(name))
+        .join(name)
+        .join(version)
+        .join("spool.toml")
+}
+
+pub fn bucket_for_name(name: &str) -> &'static str {
+    let lower = name.trim().to_ascii_lowercase();
+    if lower.starts_with("lib") {
+        return "lib";
+    }
+
+    match lower.bytes().next() {
+        Some(first @ b'a'..=b'z') => match first {
+            b'a' => "a",
+            b'b' => "b",
+            b'c' => "c",
+            b'd' => "d",
+            b'e' => "e",
+            b'f' => "f",
+            b'g' => "g",
+            b'h' => "h",
+            b'i' => "i",
+            b'j' => "j",
+            b'k' => "k",
+            b'l' => "l",
+            b'm' => "m",
+            b'n' => "n",
+            b'o' => "o",
+            b'p' => "p",
+            b'q' => "q",
+            b'r' => "r",
+            b's' => "s",
+            b't' => "t",
+            b'u' => "u",
+            b'v' => "v",
+            b'w' => "w",
+            b'x' => "x",
+            b'y' => "y",
+            b'z' => "z",
+            _ => "lib",
+        },
+        _ => "lib",
+    }
 }
 
 fn collect_spool_files(root: &Path, files: &mut Vec<PathBuf>) -> io::Result<()> {
