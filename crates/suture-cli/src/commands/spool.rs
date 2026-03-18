@@ -1,5 +1,5 @@
 use std::fs;
-use suture_index::{bucket_for_name, list_spools, spools_root, SpoolEntry};
+use suture_index::{bucket_for_name, fetch_registry, list_spools, SpoolEntry};
 
 pub fn run(args: &[String]) -> Result<(), String> {
     let Some((command, rest)) = args.split_first() else {
@@ -66,13 +66,7 @@ fn add(args: &[String]) -> Result<(), String> {
         index += 1;
     }
 
-    let root = spools_root().map_err(|error| error.to_string())?;
-    if !root.exists() {
-        return Err(format!(
-            "spools registry not found at `{}`",
-            root.display()
-        ));
-    }
+    let root = fetch_registry().map_err(|error| error.to_string())?;
 
     let spool_path = root
         .join("entries")

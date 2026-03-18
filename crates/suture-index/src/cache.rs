@@ -8,12 +8,10 @@ pub fn spools_root() -> io::Result<PathBuf> {
         }
     }
 
-    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let repo_root = manifest_dir
-        .parent()
-        .and_then(|path| path.parent())
-        .and_then(|path| path.parent())
-        .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "missing workspace root"))?;
+    let home = std::env::var_os("USERPROFILE")
+        .or_else(|| std::env::var_os("HOME"))
+        .map(PathBuf::from)
+        .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "missing home directory"))?;
 
-    Ok(repo_root.join("spools"))
+    Ok(home.join(".mentalogue").join("suture").join("spools-index"))
 }
