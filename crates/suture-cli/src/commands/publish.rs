@@ -1,5 +1,7 @@
 use std::env;
+use std::io::{self, IsTerminal, Write};
 use std::path::Path;
+use std::process::{Command, Stdio};
 
 use suture_index::SpoolEntry;
 
@@ -97,10 +99,11 @@ fn usage() -> String {
         "usage:",
         "  suture publish <spool.toml> [--rate <minutes>]",
         "  suture publish <name> <version> <git-url> [--tag <tag>] [--summary <text>] [--entry <path>] [--rate <minutes>]",
+        "auth:",
+        "  prefers `gh auth login`; falls back to SUTURE_SPOOLS_TOKEN / GH_TOKEN / GITHUB_TOKEN",
         "env:",
         "  SUTURE_SPOOLS_REPO (default MentalogueLang/Spools-Index)",
         "  SUTURE_SPOOLS_ISSUE (default 1)",
-        "  SUTURE_SPOOLS_TOKEN (or GH_TOKEN/GITHUB_TOKEN)",
     ]
     .join("\n")
 }
@@ -121,11 +124,20 @@ fn submit_comment(body: &str) -> Result<(), String> {
     let repo = env::var("SUTURE_SPOOLS_REPO")
         .unwrap_or_else(|_| "MentalogueLang/Spools-Index".to_string());
     let issue = env::var("SUTURE_SPOOLS_ISSUE").unwrap_or_else(|_| "1".to_string());
+
+    let install_message = ensure_github_cli_available()?;
+    if install_message.is_none() {
+        ensure_github_cli_auth()?;
+        return post_comment_with_gh(&repo, &issue, body);
+    }
+
     let token = env::var("SUTURE_SPOOLS_TOKEN")
         .or_else(|_| env::var("GITHUB_TOKEN"))
-        .or_else(|_| env::var("GH_TOKEN"))
-        .map_err(|_| "missing token; set SUTURE_SPOOLS_TOKEN or GH_TOKEN".to_string())?;
-    post_comment(&repo, &issue, body, &token)
+        .or_else(|_| env::var("GH_TOKEN"));
+    match token {
+        Ok(token) => post_comment(&repo, &issue, body, &token),
+        Err(_) => Err(install_message.unwrap_or_else(github_cli_install_message)),
+    }
 }
 
 fn post_comment(repo: &str, issue: &str, body: &str, token: &str) -> Result<(), String> {
@@ -160,4 +172,128 @@ fn escape_json(value: &str) -> String {
 
 fn looks_like_spool_file(value: &str) -> bool {
     value.ends_with(".toml") || Path::new(value).exists()
+}
+
+fn github_cli_available() -> bool {
+    Command::new("gh")
+        .arg("--version")
+        .status()
+        .is_ok_and(|status| status.success())
+}
+
+fn ensure_github_cli_available() -> Result<Option<String>, String> {
+    if github_cli_available() {
+        return Ok(None);
+    }
+
+    if !io::stdin().is_terminal() || !io::stdout().is_terminal() {
+        return Ok(Some(github_cli_install_message()));
+    }
+
+    println!("GitHub CLI is required to publish to Spools.");
+    print!("Install it now? [Y/n] ");
+    io::stdout()
+        .flush()
+        .map_err(|error| format!("failed to prompt for GitHub CLI install: {error}"))?;
+
+    let mut answer = String::new();
+    io::stdin()
+        .read_line(&mut answer)
+        .map_err(|error| format!("failed to read install response: {error}"))?;
+    let answer = answer.trim().to_ascii_lowercase();
+    if !answer.is_empty() && answer != "y" && answer != "yes" {
+        return Ok(Some(github_cli_install_message()));
+    }
+
+    run_github_cli_install()?;
+    if github_cli_available() {
+        Ok(None)
+    } else {
+        Ok(Some(github_cli_install_message()))
+    }
+}
+
+fn ensure_github_cli_auth() -> Result<(), String> {
+    let status = Command::new("gh").arg("auth").arg("status").status();
+    if status.is_ok_and(|status| status.success()) {
+        return Ok(());
+    }
+
+    println!("GitHub login required for publishing. Starting `gh auth login --web`...");
+    let status = Command::new("gh")
+        .arg("auth")
+        .arg("login")
+        .arg("--web")
+        .arg("--git-protocol")
+        .arg("https")
+        .status()
+        .map_err(|error| format!("failed to run `gh auth login`: {error}"))?;
+    if status.success() {
+        Ok(())
+    } else {
+        Err("`gh auth login` did not complete successfully".to_string())
+    }
+}
+
+fn post_comment_with_gh(repo: &str, issue: &str, body: &str) -> Result<(), String> {
+    let mut child = Command::new("gh")
+        .arg("issue")
+        .arg("comment")
+        .arg(issue)
+        .arg("--repo")
+        .arg(repo)
+        .arg("--body-file")
+        .arg("-")
+        .stdin(Stdio::piped())
+        .spawn()
+        .map_err(|error| format!("failed to run `gh issue comment`: {error}"))?;
+    let mut stdin = child
+        .stdin
+        .take()
+        .ok_or_else(|| "failed to open stdin for `gh issue comment`".to_string())?;
+    stdin
+        .write_all(body.as_bytes())
+        .map_err(|error| format!("failed to send publish request to `gh issue comment`: {error}"))?;
+    drop(stdin);
+    let status = child
+        .wait()
+        .map_err(|error| format!("failed waiting for `gh issue comment`: {error}"))?;
+    if status.success() {
+        Ok(())
+    } else {
+        Err("`gh issue comment` could not submit the publish request".to_string())
+    }
+}
+
+fn run_github_cli_install() -> Result<(), String> {
+    let mut command = if cfg!(windows) {
+        let mut command = Command::new("winget");
+        command.arg("install").arg("--id").arg("GitHub.cli").arg("-e");
+        command
+    } else if cfg!(target_os = "macos") {
+        let mut command = Command::new("brew");
+        command.arg("install").arg("gh");
+        command
+    } else {
+        return Err(github_cli_install_message());
+    };
+
+    let status = command
+        .status()
+        .map_err(|error| format!("failed to start GitHub CLI install: {error}"))?;
+    if status.success() {
+        Ok(())
+    } else {
+        Err(github_cli_install_message())
+    }
+}
+
+fn github_cli_install_message() -> String {
+    if cfg!(windows) {
+        "GitHub CLI is required for public publishing. Install it with `winget install --id GitHub.cli -e`, then run `gh auth login`.".to_string()
+    } else if cfg!(target_os = "macos") {
+        "GitHub CLI is required for public publishing. Install it with `brew install gh`, then run `gh auth login`.".to_string()
+    } else {
+        "GitHub CLI is required for public publishing. Install `gh` from https://cli.github.com/ or your package manager, then run `gh auth login`.".to_string()
+    }
 }
