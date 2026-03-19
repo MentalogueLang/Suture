@@ -119,29 +119,53 @@ pub fn emit_mlib(entry_source: &Path, output: &Path) -> Result<(), String> {
         output_arg.as_str(),
     ];
 
+    let mut failures = Vec::new();
+
     if let Ok(value) = std::env::var("SUTURE_INSCRIBE_BIN") {
         if !value.trim().is_empty() {
-            run_command(Command::new(value).args(args), "inscribe emit mlib")?;
-            return Ok(());
+            match run_command(Command::new(value).args(args), "inscribe emit mlib") {
+                Ok(()) => return Ok(()),
+                Err(error) => failures.push(error),
+            }
         }
     }
 
-    if run_command(Command::new("inscribe").args(args), "inscribe emit mlib").is_ok() {
-        return Ok(());
+    match run_command(Command::new("inscribe").args(args), "inscribe emit mlib") {
+        Ok(()) => return Ok(()),
+        Err(error) => failures.push(error),
     }
 
-    let repo = mentalogue_repo_root()?;
-    let inscribe_root = repo.join("inscribe");
-    run_command(
-        Command::new("cargo")
-            .arg("run")
-            .arg("-p")
-            .arg("inscribe-cli")
-            .arg("--")
-            .args(args)
-            .current_dir(inscribe_root),
-        "cargo run -p inscribe-cli -- emit mlib",
-    )
+    match run_command(
+        Command::new("inscribe-cli").args(args),
+        "inscribe-cli emit mlib",
+    ) {
+        Ok(()) => return Ok(()),
+        Err(error) => failures.push(error),
+    }
+
+    if let Some(inscribe_manifest) = find_inscribe_manifest() {
+        match run_command(
+            Command::new("cargo")
+                .arg("run")
+                .arg("--manifest-path")
+                .arg(inscribe_manifest.as_os_str())
+                .arg("-p")
+                .arg("inscribe-cli")
+                .arg("--")
+                .args(args),
+            "cargo run -p inscribe-cli -- emit mlib",
+        ) {
+            Ok(()) => return Ok(()),
+            Err(error) => failures.push(error),
+        }
+    } else {
+        failures.push("could not find inscribe/Cargo.toml for cargo fallback".to_string());
+    }
+
+    Err(format!(
+        "failed to emit mlib; {}. Set SUTURE_INSCRIBE_BIN to a valid inscribe executable.",
+        failures.join("; ")
+    ))
 }
 
 pub fn remove_cached_spool(dir: &Path, name: &str) -> Result<(), String> {
@@ -166,14 +190,25 @@ pub fn host_target() -> &'static str {
     }
 }
 
-fn mentalogue_repo_root() -> Result<PathBuf, String> {
-    let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
-    manifest_dir
-        .parent()
-        .and_then(Path::parent)
-        .and_then(Path::parent)
-        .map(Path::to_path_buf)
-        .ok_or_else(|| "unable to resolve Mentalogue repository root".to_string())
+fn find_inscribe_manifest() -> Option<PathBuf> {
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let current_dir = std::env::current_dir().ok();
+    let mut starts = Vec::new();
+    if let Some(current_dir) = current_dir {
+        starts.push(current_dir);
+    }
+    starts.push(manifest_dir);
+
+    for start in starts {
+        for ancestor in start.ancestors() {
+            let candidate = ancestor.join("inscribe").join("Cargo.toml");
+            if candidate.exists() {
+                return Some(candidate);
+            }
+        }
+    }
+
+    None
 }
 
 fn run_git<const N: usize>(args: [&str; N], cwd: Option<&Path>) -> Result<(), String> {
